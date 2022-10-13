@@ -288,7 +288,6 @@ p2 <-
     scale_y_continuous(limits = c(-0.005, 0.02)) +
     theme_tq()
 
-
 # プロット表示
 print(p2)
 grid.arrange(p1, p2)
