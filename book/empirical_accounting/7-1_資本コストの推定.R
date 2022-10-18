@@ -154,7 +154,7 @@ FF3_cost_of_capital %>%
     theme_tq()
 
 # データ保存
-# FF3_cost_of_capital %>% write_csv("data/ch06_FF3_cost_of_capital.csv")
+# FF3_cost_of_capital %>% write_csv("data/ch07_FF3_cost_of_capital.csv")
 
 
 # 6 サイズ別に株式資本コストの推定値を可視化 ----------------------------------------------
