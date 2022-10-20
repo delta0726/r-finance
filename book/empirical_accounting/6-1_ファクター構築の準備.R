@@ -10,6 +10,7 @@
 
 # ＜概要＞
 # - CAPMやFF3などのモデルで使用するデータセットを作成する
+# - 分位ごとのリターンをプロットして評価方法を学ぶ
 
 
 # ＜目次＞
@@ -37,13 +38,13 @@ library(gridExtra)
 # データロード
 # --- リターンと財務データを結合した月次データ
 # --- リターンと財務データを結合した年次データ
-monthly_data <- read_csv("data/ch05_output1.csv")
-annual_data  <- read_csv("data/ch05_output2.csv")
+monthly_data_raw <- read_csv("data/ch05_output1.csv")
+annual_data_raw  <- read_csv("data/ch05_output2.csv")
 
 # データ確認
 # --- 含まれる列は異なる点に注意
-monthly_data %>% names()
-annual_data %>% names()
+monthly_data_raw %>% names()
+annual_data_raw %>% names()
 
 
 # 1 年次データの加工 -------------------------------------------------------------
@@ -51,12 +52,13 @@ annual_data %>% names()
 # ＜ポイント＞
 # - 年次データに期初ウエイトを追加する
 
+
 # データ加工
 # --- 期初の時価総額(lagged_ME)を作成
 # --- 年ごとにグループ化して期初ウエイト(w_M)の作成
 # --- 期初ウエイト(w_M)のうち2016年以降でNAなものは0に置換
 annual_data <-
-  annual_data %>%
+  annual_data_raw %>%
     group_by(firm_ID) %>%
     mutate(lagged_ME = lag(ME)) %>%
     ungroup() %>%
@@ -76,7 +78,7 @@ annual_data %>%
 # 2 月次データの加工 ------------------------------------------------------------
 
 # 結合用データの作成
-# --- 個別銘柄の年初ウエイトを取得
+# --- 個別銘柄の年初ウエイト
 annual_weight <-
   annual_data %>%
     select(year, firm_ID, w_M)
@@ -84,7 +86,7 @@ annual_weight <-
 # データ加工
 # --- 月次データに年初ウエイトを追加
 monthly_data <-
-  monthly_data %>%
+  monthly_data_raw %>%
     full_join(annual_weight, by = c("year", "firm_ID")) %>%
     select(-w_M, w_M)
 
@@ -123,27 +125,18 @@ factor_data <-
 
 # プロットデータの作成
 # --- 累積リターンの追加
+# --- 期初が1となるようにレコードを追加
 plot_data <-
   factor_data %>%
     mutate(gross_R_M = 1 + R_M,
-           cumulative_gross_R_M = cumprod(gross_R_M))
-
-# プロット作成
-# --- 累積リターンの推移
-# --- 期初が1になっていない
-plot_data %>%
-  ggplot(aes(x = month_ID, y = cumulative_gross_R_M)) +
-  geom_line() +
-  geom_point() +
-  labs(x = "Month ID", y = "Cumulative Gross Return") +
-  theme_tq()
+           cumulative_gross_R_M = cumprod(gross_R_M)) %>%
+    select(month_ID, cumulative_gross_R_M) %>%
+    add_row(month_ID = 12, cumulative_gross_R_M = 1, .before = 1)
 
 # プロット作成
 # --- 折れ線グラフの期初の1を追加
 # --- 元本の水準を点線で図示
 plot_data %>%
-  select(month_ID, cumulative_gross_R_M) %>%
-  add_row(month_ID = 12, cumulative_gross_R_M = 1, .before = 1) %>%
   ggplot(aes(x = month_ID, y = cumulative_gross_R_M)) +
   geom_line() +
   geom_point() +
@@ -168,6 +161,7 @@ annual_data <-
     ungroup()
 
 # 確認
+# --- 分位ごとの銘柄数が均等であることを確認
 annual_data %>%
   select(year, firm_ID, ME_rank10) %>%
   drop_na() %>%
@@ -214,7 +208,7 @@ ME_cross_sectional_return %>%
     theme_tq()
 
 # データ保存
-ME_cross_sectional_return %>% write_csv("data/ch06_ME_cross_sectional_return.csv")
+# ME_cross_sectional_return %>% write_csv("data/ch06_ME_cross_sectional_return.csv")
 
 
 # 8 BPにより分位ポートフォリオを作成 ---------------------------------------------------
