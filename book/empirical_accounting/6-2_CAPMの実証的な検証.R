@@ -2,15 +2,16 @@
 # Title   : 実証会計・ファイナンス（Rによる財務・株式データの取得）
 # Chapter : 6 ファクターモデルの準備
 # Theme   : 2 CAPMの実証的な検証
-# Date    : 2022/10/14
+# Date    : 2022/10/24
 # Page    : P256 - P271
 # URL     : https://www2.econ.osaka-u.ac.jp/~eaafinr/sect-3.html
 # ***********************************************************************************************
 
 
 # ＜概要＞
-# - CAPMは非現実的な仮定に基づいく理論であるが、市場の本質的なエッセンスを示すもの
-# - 現実のマーケットでCAPMを実行することで、市場の歪みがどこに存在するのか調べるヒントとなる
+# - CAPMとは市場においてベータという軸が存在することを示すもの
+#   --- CAPMは非現実的な仮定に基づいく理論であるが、市場の本質的なエッセンスを示すもの
+#   --- 現実のマーケットでCAPMを実行することで、市場の歪みがどこに存在するのか調べるヒントとなる
 
 
 # ＜目次＞
@@ -77,7 +78,8 @@ ME_sorted_portfolio %>% print()
 
 
 # データ抽出
-# --- F1ポートフォリオの抽出
+# --- 分位ポートフォリオの抽出(F1)
+# --- 1銘柄の時系列データ
 ME_sorted_portfolio_F1 <-
   ME_sorted_portfolio %>%
     filter(ME_rank10 == 1)
@@ -85,15 +87,18 @@ ME_sorted_portfolio_F1 <-
 # モデル構築
 # --- CAPMの実行（証券iのリスクプレミアムを市場リスクプレミアムで回帰）
 # --- 時系列方向のデータセットであるため時系列回帰
+# --- Re(Total Return) ~ R_Me(Excess Return)
 model_F1 <- lm(Re ~ R_Me, data = ME_sorted_portfolio_F1)
 
 # 回帰係数の確認
 # --- ベータは0.654と正の値となっている
 # --- アルファは0.0121かつt値が3なので有意に正（CAPMが成立しない可能性が高い）
+# --- CAPMはベータのみでリターンを説明するが、以下の結果はアルファが有意に惣菜することを示す
 model_F1 %>% tidy()
 
 # プロット作成
 # --- 上記のモデルは使用せず、geom_smooth()で回帰直線を描いている
+# --- 切片が有意に正となっている（回帰直線の信頼区間から判別）
 ME_sorted_portfolio_F1 %>%
   ggplot(aes(x = R_Me, y = Re)) +
   geom_point() +
@@ -108,34 +113,8 @@ ME_sorted_portfolio_F1 %>%
 
 # ＜ポイント＞
 # - 全ての分位で時系列回帰を行ってCAPMモデルの回帰係数を取得する
+#   --- purrr::map()を使ったモダンな方法のみを示す
 
-
-# 方法1：ループを使う ------------------------------------------
-
-# リスト準備
-# --- 推定結果を格納するためのリスト
-CAPM_results <- list(NA)
-
-# CAPMの実行
-# --- 各モデルの回帰係数の抽出
-for(i in 1:10){
-  CAPM_results[[i]] <-
-    ME_sorted_portfolio %>%
-      filter(ME_rank10 == i) %>%
-      lm(Re ~ R_Me, data = .) %>%
-      tidy() %>%
-      mutate(ME_rank10 = i) %>%
-      select(ME_rank10, everything())
-}
-
-# 結果結合
-CAPM_results <- CAPM_results %>% bind_rows()
-
-# 確認
-CAPM_results %>% print()
-
-
-# 方法2：mapを使う ------------------------------------------
 
 # CAPMの実行
 # --- 各モデルの回帰係数の抽出
