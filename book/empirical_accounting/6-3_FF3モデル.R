@@ -10,7 +10,8 @@
 
 # ＜概要＞
 # - FF3モデルはCAPMにサイズとバリュエーションのファクターを追加したモデル
-#   --- 個別銘柄レベルではなく、分位ポートフォリオレベルで議論している点に注意
+# - CAPMではサイズに比例してCAPMアルファが観測されたが、FF3ではどのようにアルファが出力されるか？
+#   --- FF3アルファのサイズ相関はなくなり、統計的有意なアルファも減少している
 
 
 # ＜目次＞
@@ -43,13 +44,11 @@ ME_sorted_portfolio <- read_csv("data/ch06_ME_sorted_portfolio_2.csv")
 # 1 データフレームの整備 --------------------------------------------------------
 
 # ＜ポイント＞
-# - 各データフレームは不要な列が多いので削除しておく
-# - 列名も分かりやすいものに変更しておく
+# - 各データフレームは不要な列が多いので必要な列のみを抽出する
+# - 列名も直観性のあるものに変更する
 
 
-# annual_data ---------------------------------------
-
-# データ加工
+# annual_data
 annual_data <-
   annual_data %>%
     rename(Rf = R_F,
@@ -57,34 +56,21 @@ annual_data <-
            Bp = lagged_BEME) %>%
     select(year, firm_ID,  R, Re, Rf, Mcap, Bp)
 
-# 確認
-annual_data %>% print()
-
-
-# monthly_data ---------------------------------------
-
-# データ加工
+# monthly_data
 monthly_data <-
   monthly_data %>%
     rename(Rf = R_F) %>%
     select(year, firm_ID, month_ID, R, Rf)
 
-# 確認
-monthly_data %>% print()
-
-
-# factor_data ---------------------------------------
-
+# factor_data
 factor_data <-
   factor_data %>%
-    select(-R_F, -R_M)
+    select(month_ID, R_Me)
 
-
-# ME_sorted_portfolio --------------------------------
-
+# ME_sorted_portfolio
 ME_sorted_portfolio <-
   ME_sorted_portfolio %>%
-    select(-R_F, -R_M)
+    select(month_ID, ME_rank10, Re)
 
 
 # 2 Size/Bpによる分位ポートの作成 ------------------------------------------------------
@@ -99,7 +85,7 @@ ME_sorted_portfolio <-
 # --- 分位ポートフォリオの作成
 # --- Bpはパーセントランクの閾値で分位化
 # --- interaction()は文字列を結合してファクター化する関数
-annual_data <-
+annual_tiled_data <-
   annual_data %>%
     group_by(year) %>%
     mutate(Mcap_tile2 = as.factor(ntile(Mcap, 2)),
@@ -109,8 +95,8 @@ annual_data <-
                           breaks = c(0, 0.3, 0.7, 1),
                           labels = c(1, 2, 3),
                           include.lowest = TRUE)) %>%
-    mutate(FF_port_type = interaction(Mcap_tile2, Bp_rank3),
-           FF_port_type = fct_recode(FF_port_type,
+    mutate(FF_port_type = interaction(Mcap_tile2, Bp_rank3)) %>%
+    mutate(FF_port_type = fct_recode(FF_port_type,
                                      SL = "1.1", BL = "2.1",
                                      SN = "1.2", BN = "2.2",
                                      SH = "1.3", BH = "2.3")) %>%
@@ -119,13 +105,14 @@ annual_data <-
     ungroup()
 
 # データ確認
-annual_data %>%
-  select(firm_ID, year, R, Re, Rf, Mcap_tile2, Bp_rank3, FF_port_type) %>%
+# --- P275
+annual_tiled_data %>%
+  select(firm_ID, year, R, Re, Rf, Mcap_tile2, Bp_prank, Bp_rank3, FF_port_type) %>%
   slice(1:6)
 
 # 分位ポート確認
 # --- Mcap_tile2とBp_rank3のペアでグループ化
-annual_data %>%
+annual_tiled_data %>%
   group_by(FF_port_type) %>%
   summarize(mean_Bp = mean(Bp),
             mean_Mcap = mean(Mcap),
@@ -141,10 +128,10 @@ annual_data %>%
 
 
 # 年次データの加工
-# --- 各ポートフォリオにウエイトを追加
-# --- 年次ポートフォリオの完成
+# --- Bが含まれるほうがmean_Mcapが大きい
+# --- Hが含まれるほうがmean_Bpが大きい
 annual_portfolio <-
-  annual_data %>%
+  annual_tiled_data %>%
     select(year, firm_ID, FF_port_type, Mcap_tile2, Bp_rank3, w)
 
 # 月次データに統合
@@ -224,9 +211,10 @@ FF_portfolio_cumulative_return %>%
 
 # 6 スプレッドリターン(SMBとHML)の作成 -----------------------------------------
 
-# FF_portfolio <-
-#   FF_portfolio %>%
-#     pivot_wider(id_cols = month_ID, names_from = FF_port_type, values_from = R) # FF_port_typeの値に基づく列を作成し, 縦長から横長のデータに変換
+# ＜ポイント＞
+# - 伝統的なFF3モデルは分位レベルでスプレッドリターンを計算してファクターとして扱う
+#   --- 実務では｢マーケット｣｢サイズ｣｢バリュー｣を扱うクロスセクションモデルも｢FF3モデル｣と呼ばれることがある
+
 
 # SMBとHMLを計算
 FF_port_spread <-
@@ -237,19 +225,31 @@ FF_port_spread <-
     select(month_ID, SMB, HML)
 
 # 3ファクターの実現値をfactor_dataに集約
-factor_data <-
+model_data <-
   factor_data %>%
     full_join(FF_port_spread, by = "month_ID") %>%
     select(-c("SMB", "HML"), c("SMB", "HML"))
 
+ # 3ファクターの実現値をME_sorted_portfolioに追加
 ME_sorted_portfolio <-
   ME_sorted_portfolio %>%
-    full_join(factor_data, by = "month_ID") # 3ファクターの実現値をME_sorted_portfolioに追加
+    full_join(model_data, by = "month_ID")
+
+# データ確認
+ME_sorted_portfolio %>% print()
 
 
 # 7 FF3のモデル構築 --------------------------------------------------------------
 
+# ＜ポイント＞
+# - 分位ごとの超過リターンをR_Me/とSMB/HMLを説明変数として分位ごとに回帰する
+#   --- R_Me：マーケット(対キャッシュ超過リターン)
+#   --- SMB ：サイズ
+#   --- HML ：バリュー
+
+
 # FF3の実行
+# --- 分位ごとにグループ化して回帰
 # --- 各モデルの回帰係数の抽出
 FF3_results <-
   ME_sorted_portfolio %>%
@@ -266,6 +266,11 @@ FF3_results %>% print()
 
 
 # 8 FF3アルファの有意性評価 -----------------------------------------------------------
+
+# - FF3アルファではサイズ相関がなくなり、統計的有意なアルファも減少している
+#   --- CAPMではサイズに比例してCAPMアルファが観測された
+#   --- FF3ではSMBがサイズに起因するアルファを説明した
+
 
 # FF3アルファの可視化
 # --- 定数項に関する推定結果のみを抽出
