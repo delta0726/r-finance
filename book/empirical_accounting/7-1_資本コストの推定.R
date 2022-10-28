@@ -118,7 +118,7 @@ factor_risk_premium <-
   factor_data %>%
     select(R_Me, SMB, HML) %>%
     apply(MARGIN = 2, mean) %>%
-    multiply_by(12)
+    multiple_by(12)
 
 
 # 5 株式資本コストの推定 ------------------------------------------------------------
