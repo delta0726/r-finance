@@ -19,6 +19,7 @@
 # 3 リスク寄与度の計算
 # 4 アロケーション比較
 # 5 銘柄ごとのアロケーション比較
+# 6 リスク指標の確認
 
 
 # 0 準備 ----------------------------------------------------------------------
@@ -28,7 +29,7 @@ library(tidyverse)
 library(magrittr)
 library(FRAPO)
 library(fPortfolio)
-library(lattice)
+library(PerformanceAnalytics)
 
 
 # データロード
@@ -37,6 +38,7 @@ data(SPISECTOR)
 # データ確認
 SPISECTOR %>% head()
 SPISECTOR[, -"SPI"] %>% head()
+
 
 # 1 分散共分散行列の計算 ---------------------------------------------------------
 
@@ -144,3 +146,25 @@ MRC %>%
   coord_flip() +
   theme(legend.position = "none")
 
+
+# 6 リスク指標の確認 ------------------------------------------------------------
+
+# ポートフォリオリターン
+Rdec <- R / 100
+Pret <- W %>% apply( 2, function(x) Rdec %*% x / 100)
+
+# ボラティリティ
+SD_raw <- Pret %>% apply(MARGIN = 2, sd) * 100
+SD_ann <- Pret %>% apply(MARGIN = 2, function(x) sd(x) * sqrt(260)) * 100
+
+# 期待ショートフォール
+ES95 <- Pret %>% apply(MARGIN = 2, function(x) abs(ES(R = x, method = "modified") * 100))
+
+# 分散レシオ
+# Diversification Ratio
+# concentration Ratio
+DR <- W %>% apply(MARGIN = 2, FUN = dr, Sigma = V)
+CR <- W %>% apply(MARGIN = 2, FUN = cr, Sigma = V)
+
+# 確認
+rbind(SD_raw, SD_ann, ES95, DR, CR)
