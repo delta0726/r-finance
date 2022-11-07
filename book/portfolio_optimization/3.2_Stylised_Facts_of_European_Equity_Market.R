@@ -2,7 +2,7 @@
 # Title   : Financial Risk Modeling and Portfolio Optimization with R
 # Chapter : 3 Financial Market Data
 # Theme   : 1.2 Stylized Fact for multivariate series
-# Date    : 2022/10/30
+# Date    : 2022/11/08
 # Page    : P32 - P35
 # URL     : https://www.pfaffikus.de/rpacks/
 # ***********************************************************************************************
@@ -10,14 +10,16 @@
 
 # ＜概要＞
 # - ポートフォリオの観点からは多変量リターン系列の特性が重要
+# - リターンシリーズ間の相関はそれほど明確でない（投資行動のインセンティブ）
 # - ボラティリティ・クラスタリングは明確に確認できる
 
 
 # ＜目次＞
 # 0 準備
 # 1 データ変換とプロット
-# 2 Stylized Factの確認
-# 3 ローリング相関の確認
+# 2 リターン変換
+# 3 Stylized Factの確認
+# 4 ローリング相関の確認
 
 
 # 0 準備 ----------------------------------------------------------------------
@@ -35,6 +37,7 @@ data(EuStockMarkets)
 # --- 株価指数の指数値データ
 EuStockMarkets %>% head()
 EuStockMarkets %>% class()
+EuStockMarkets %>% glimpse()
 
 
 # 1 データ変換とプロット ----------------------------------------------------------
@@ -46,9 +49,15 @@ EuStockLevel <-
     as.zoo() %>%
     .[, c("DAX", "CAC", "FTSE")]
 
+
+# データ確認
+EuStockLevel %>% head()
+
 # プロット確認
 EuStockLevel %>% plot(xlab = "", main = "")
 
+
+# 2 リターン変換 ----------------------------------------------------------------
 
 # リターンに変換
 EuStockRet <-
@@ -61,7 +70,7 @@ EuStockRet <-
 EuStockRet %>% plot(xlab = "", main = "")
 
 
-# 2 Stylized Factの確認 --------------------------------------------------------
+# 3 Stylized Factの確認 --------------------------------------------------------
 
 # ＜ポイント＞
 # - 左側がリターンのCCF、右側が絶対値リターンのCCF
@@ -99,7 +108,7 @@ ccf(abs(EuStockRet$CAC), abs(EuStockRet$FTSE), ylab = "",
     xlab = "", lag.max = 20, main = "Absolute returns CAC vs FTSE")
 
 
-# 3 ローリング相関の確認 ---------------------------------------------------------
+# 4 ローリング相関の確認 ---------------------------------------------------------
 
 # ＜ポイント＞
 # - 各系列は相関の水準や推移の点でかなり類似している
@@ -122,4 +131,3 @@ rcor <-
 
 # プロット作成
 rcor %>% plot(main = "", xlab = "")
-
