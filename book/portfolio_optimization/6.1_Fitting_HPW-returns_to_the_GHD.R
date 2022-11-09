@@ -2,7 +2,7 @@
 # Title   : Financial Risk Modeling and Portfolio Optimization with R
 # Chapter : 6 Suitable Distribution for returns
 # Theme   : 1 Fitting HPW return to the GHD
-# Date    : 2022/10/31
+# Date    : 2022/11/10
 # Page    : P74 - P77
 # URL     : https://www.pfaffikus.de/rpacks/
 # ***********************************************************************************************
@@ -14,6 +14,11 @@
 #   --- GHD：一般化双曲型分布
 #   --- HYP：双曲型分布
 #   --- NIG：正規逆ガウス分布
+
+
+# ＜テールリスクとの関係＞
+# - VaRやESなどのリスク指標は分布の左側に位置する分位点を用いてテール確率を定義する
+#   --- ポートフォリオ構築においては収益分布全体をモデル化する必要がある
 
 
 # ＜目次＞
@@ -34,6 +39,12 @@ library(magrittr)
 library(ghyp)
 library(timeSeries)
 library(fBasics)
+library(conflicted)
+
+# コンフリクト解消
+conflict_prefer("select", "dplyr")
+conflict_prefer("legend", "graphics")
+
 
 # データロード
 data(DowJones30)
@@ -55,8 +66,9 @@ DowJones30_Mod <-
 # 日次リターンの作成
 # --- HP社のみを抽出
 yret <-
-  DowJones30_Mod$HWP %>%
-    timeSeries(charvec = DowJones30_Mod$Period) %>%
+  DowJones30_Mod %>%
+    select(Period, HWP) %$%
+    timeSeries(data = HWP, charvec = Period) %>%
     log() %>%
     diff() %>%
     multiply_by(100) %>%
@@ -80,22 +92,27 @@ nigfit <- yret %>% fit.NIGuv(symmetric = FALSE, control = list(maxit = 1000), si
 
 # 3 カーネル密度プロットによる比較 --------------------------------------------------
 
+# ＜ポイント＞
+# - 経験的分布のX値を元に各分布のY値を計算して分布を比較する
+#   --- 経験的分布と正規分布は明らかに尖度が異なることが確認できる
+#   --- 一般化双曲型分布(GHD)が最もフィッティングがよさそう
+
+
 # カーネル密度
 # --- HP社のリターン
 ef <- yret %>% density()
 
-# 各分布
+# xの対応値の取得
 #   --- GHD：一般化双曲型分布
 #   --- HYP：双曲型分布
 #   --- NIG：正規逆ガウス分布
+#   --- 正規分布
 ghddens <- ef$x %>% dghyp(ghdfit)
 hypdens <- ef$x %>% dghyp(hypfit)
 nigdens <- ef$x %>% dghyp(nigfit)
-
-# 正規分布
 nordens <- ef$x %>% dnorm(mean = mean(yret), sd = sd(yret))
 
-
+# プロット作成
 col.def <- c("black", "red", "blue", "green", "orange")
 
 ef %>% plot(xlab = "", ylab = expression(f(x)), ylim = c(0, 0.25))
@@ -109,6 +126,10 @@ legend("topleft",
 
 
 # 4 QQ-Plotによる比較 ----------------------------------------------------------
+
+# ＜ポイント＞
+# - 分布の裾が正規分布とどれくらい離れているかはQQプロットで確認することができる
+
 
 ghdfit %>%
   qqghyp(line = TRUE, ghyp.col = "red", plot.legend = FALSE,
@@ -129,6 +150,10 @@ legend("topleft", legend = c("GHD", "HYP", "NIG"),
 
 # 5 モデル診断による最良分布の確認 --------------------------------------------------
 
+# ＜ポイント＞
+# - stepAIC.ghyp()を使うと最良分布をシミュレーションにより評価することができる
+
+
 # 分布診断
 # --- 分布を最も良く説明できる分布を探す
 AIC <- yret %>%
@@ -138,6 +163,12 @@ AIC <- yret %>%
 
 # 確認
 AIC %>% print()
+
+# 表出力
+# --- ghypのAICが最も低い
+AIC$fit.table %>%
+  mutate_if(is.numeric, round, 3) %>%
+  select(model, aic, llh, lambda, alpha.bar, mu, sigma, gamma)
 
 
 # 6 尤度比検定 --------------------------------------------------------------------
