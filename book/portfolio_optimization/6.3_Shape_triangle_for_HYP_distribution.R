@@ -2,32 +2,40 @@
 # Title   : Financial Risk Modeling and Portfolio Optimization with R
 # Chapter : 6 Suitable Distribution for returns
 # Theme   : 3 Shape triangle for HYP distribution
-# Date    : 2022/11/01
+# Date    : 2022/11/12
 # Page    : P80 - P82
 # URL     : https://www.pfaffikus.de/rpacks/
 # ***********************************************************************************************
 
 
 # ＜概要＞
-# -
+# - リターン期間ごとのリターン分布の尖度の違いを確認する
+# - HWP社の株価リターンからStylezed Factの過剰尖度を確認する
+#   --- 通常、金融市場のリターンの経験的分布は｢過剰尖度｣と｢負の歪度｣によって特徴付けられる
 
 
 # ＜目次＞
 # 0 準備
 # 1 リターン系列の作成
-# 2 HYPによるフィッティング
-# 3 パラメータの抽出
-# 4 Shape Triangleの作成
+# 2 双曲型分布(HYP)によるフィッティング
+# 3 密度プロットの比較
+# 4 パラメータの抽出
+# 5 Shape Triangleの作成
 
 
 # 0 準備 ----------------------------------------------------------------------
 
 # ライブラリ
 library(tidyverse)
+library(magrittr)
+library(conflicted)
 library(ghyp)
 library(timeSeries)
 library(fBasics)
 library(Hmisc)
+
+# コンフリクト解消
+conflict_prefer("select", "dplyr")
 
 
 # データロード
@@ -50,31 +58,81 @@ DowJones30_Mod <-
 # 日次株価の作成
 # --- HP社のみを抽出
 y <-
-  DowJones30_Mod$HWP %>%
-    timeSeries(charvec = DowJones30_Mod$Period)
+  DowJones30_Mod %>%
+    select(Period, HWP) %$%
+    timeSeries(data = HWP, charvec = Period)
 
 # リターン期間
 rd <- c(1, 5, 10, 20, 40)
 
-# 期間リターンの作成
+# ローリングリターンの作成
+# --- 列ごとにリターン期間が異なる
 yrets <-
-  lapply(rd, function(x) diff(log(y), lag = x)) %>%
+  rd %>%
+    lapply(function(x) diff(log(y), lag = x)) %>%
     unlist() %>%
     matrix(ncol = 5) %>%
     na.omit()
 
 
-# 2 HYPによるフィッティング --------------------------------------------------------------
+# 2 双曲型分布(HYP)によるフィッティング ---------------------------------------------------
+
+# ＜ポイント＞
+# - 列ごとに分布モデルを構築する
+#   --- 列ごとに異なる期間リターン
+
 
 # HYP Fitting
 hypfits <- yrets %>% apply( 2, fit.hypuv, symmetric = FALSE)
 
 # 確認
-hypfits %>% glimpse()
 hypfits %>% list.tree(2)
+hypfits %>% glimpse()
 
 
-# 3 パラメータの抽出 ----------------------------------------------------------------------
+# 3 密度プロットの比較 -----------------------------------------------------------------
+
+# ＜ポイント＞
+# - 双曲型分布(HYP)により経験的分布は概ね再現されている
+# - リターン期間が短いほど過剰尖度が顕著となる
+
+
+# カーネル密度
+# --- HP社のリターン
+ef <- yrets %>% apply(2, density)
+
+# xの対応値の取得
+y_pred_1 <- ef[[1]]$x %>% dghyp(hypfits[[1]])
+y_pred_2 <- ef[[2]]$x %>% dghyp(hypfits[[2]])
+y_pred_3 <- ef[[3]]$x %>% dghyp(hypfits[[3]])
+y_pred_4 <- ef[[4]]$x %>% dghyp(hypfits[[4]])
+y_pred_5 <- ef[[5]]$x %>% dghyp(hypfits[[5]])
+
+# データ結合
+X_Plot <-
+  tibble(horizon = "01D", type = "Empirical", x = ef[[1]]$x, y = ef[[1]]$y) %>%
+    bind_rows(tibble(horizon = "05D", type = "Empirical", x = ef[[2]]$x, y = ef[[2]]$y)) %>%
+    bind_rows(tibble(horizon = "10D", type = "Empirical", x = ef[[3]]$x, y = ef[[3]]$y)) %>%
+    bind_rows(tibble(horizon = "20D", type = "Empirical", x = ef[[4]]$x, y = ef[[4]]$y)) %>%
+    bind_rows(tibble(horizon = "40D", type = "Empirical", x = ef[[5]]$x, y = ef[[5]]$y)) %>%
+    bind_rows(tibble(horizon = "01D", type = "Est_HYP", x = ef[[1]]$x, y = y_pred_1)) %>%
+    bind_rows(tibble(horizon = "05D", type = "Est_HYP", x = ef[[2]]$x, y = y_pred_2)) %>%
+    bind_rows(tibble(horizon = "10D", type = "Est_HYP", x = ef[[3]]$x, y = y_pred_3)) %>%
+    bind_rows(tibble(horizon = "20D", type = "Est_HYP", x = ef[[4]]$x, y = y_pred_4)) %>%
+    bind_rows(tibble(horizon = "40D", type = "Est_HYP", x = ef[[5]]$x, y = y_pred_5))
+
+# プロット作成
+X_Plot %>%
+  ggplot(aes(x = x, y = y, color = type, group = type)) +
+  geom_line() +
+  facet_wrap(~horizon, nrow = 2)
+
+
+# 4 パラメータの抽出 ----------------------------------------------------------------------
+
+# ＜ポイント＞
+# - HYPを空間でパラメータ化する
+
 
 # 関数定義
 xichi <- function(x){
@@ -88,7 +146,7 @@ xichi <- function(x){
   return(result)
 }
 
-
+# パラメータ取得
 points <-
   hypfits %>%
     lapply(xichi) %>%
@@ -96,7 +154,7 @@ points <-
     matrix(ncol = 2, byrow = TRUE)
 
 
-# 4 Shape Triangleの作成 -----------------------------------------------------------------
+# 5 Shape Triangleの作成 -----------------------------------------------------------------
 
 # パラメータ設定
 col.def <- c("black", "blue", "red", "green", "orange")
