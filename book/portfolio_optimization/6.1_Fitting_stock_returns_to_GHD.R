@@ -1,7 +1,7 @@
 # ***********************************************************************************************
 # Title   : Financial Risk Modeling and Portfolio Optimization with R
 # Chapter : 6 Suitable Distribution for returns
-# Theme   : 1 Fitting HPW return to the GHD
+# Theme   : 6.1 Fitting stock returns to the GHD
 # Date    : 2022/11/10
 # Page    : P74 - P77
 # URL     : https://www.pfaffikus.de/rpacks/
