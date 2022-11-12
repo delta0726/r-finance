@@ -1,8 +1,8 @@
 # ***********************************************************************************************
 # Title   : Financial Risk Modeling and Portfolio Optimization with R
 # Chapter : 6 Suitable Distribution for returns
-# Theme   : 5 Shape triangle of standardized GLD
-# Date    : 2022/11/01
+# Theme   : 7.2 Shape triangle for FTSE 100 constituents
+# Date    : 2022/11/12
 # Page    : P84 - P86
 # URL     : https://www.pfaffikus.de/rpacks/
 # ***********************************************************************************************
@@ -15,7 +15,7 @@
 # ＜目次＞
 # 0 準備
 # 1 データ準備
-# 2 フィッテング
+# 2 GLDによるフィッテング
 # 3 パラメータ抽出
 # 4 プロット作成
 
@@ -31,6 +31,10 @@ library(fBasics)
 # データロード
 data(INDTRACK3)
 
+# データ確認
+INDTRACK3 %>% class()
+INDTRACK3[,1:10] %>% head()
+
 
 # 1 データ準備 ------------------------------------------------------------------
 
@@ -40,9 +44,13 @@ R <-
     returnseries(method = "discret", trim = TRUE)
 
 
-# 2 フィッテング ------------------------------------------------------------------
+# 2 GLDによるフィッテング ----------------------------------------------------------
 
-## Fitting and calculating beta and lambda
+# ＜ポイント＞
+# - fBasics::gldFit()ではGLDにフィッティングする際にロバストな手法を選択することができる
+
+
+# モデル構築
 Fit <-
   R %>%
     apply(2, gldFit, method = "rob", doplot = FALSE, trace = FALSE)
