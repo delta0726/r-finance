@@ -1,7 +1,7 @@
 # ***********************************************************************************************
 # Title   : Financial Risk Modeling and Portfolio Optimization with R
 # Chapter : 6 Suitable Distribution for returns
-# Theme   : 3 Shape triangle for HYP distribution
+# Theme   : 6.3 Stylized Facts revisited
 # Date    : 2022/11/12
 # Page    : P80 - P82
 # URL     : https://www.pfaffikus.de/rpacks/
@@ -10,7 +10,7 @@
 
 # ＜概要＞
 # - リターン期間ごとのリターン分布の尖度の違いを確認する
-# - HWP社の株価リターンからStylezed Factの過剰尖度を確認する
+# - HWP社の株価リターンからStylized Factの過剰尖度を確認する
 #   --- 通常、金融市場のリターンの経験的分布は｢過剰尖度｣と｢負の歪度｣によって特徴付けられる
 
 
