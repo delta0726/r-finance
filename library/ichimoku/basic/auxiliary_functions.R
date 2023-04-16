@@ -2,7 +2,7 @@
 # Library : ichimoku
 # Theme   : Auxiliary Functions
 # Date    : 2023/04/17
-# URL     : https://cran.r-project.org/web/packages/ichimoku/vignettes/reference.html
+# URL     : https://cran.r-project.org/web/packages/ichimoku/vignettes/utilities.html
 # ***********************************************************************************************
 
 
